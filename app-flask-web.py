@@ -73,18 +73,18 @@ TABLE_CONFIG = {
     # Таблица статусов сборки — все status_* поля как дропдауны
     'status': {
         'dropdown_fields': {
-            'status_unpacking':             ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_extensions':            ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_binaries_in_src':       ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_SQ':                    ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_svace_ob_build':        ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_svace_ob_analyze':      ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_svace_b_build':         ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_svace_b_build_analyze': ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_buildography_analyze':  ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_izb':                   ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_AKVS':                  ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
-            'status_hash':                  ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
+            'status_unpacking':             ['', 'success', 'failure', 'na'],
+            'status_extensions':            ['', 'success', 'failure', 'na'],
+            'status_binaries_in_src':       ['', 'success', 'failure', 'na'],
+            'status_SQ':                    ['', 'success', 'failure', 'na'],
+            'status_svace_ob_build':        ['', 'success', 'failure', 'na'],
+            'status_svace_ob_analyze':      ['', 'success', 'failure', 'na'],
+            'status_svace_b_build':         ['', 'success', 'failure', 'na'],
+            'status_svace_b_build_analyze': ['', 'success', 'failure', 'na'],
+            'status_buildography_analyze':  ['', 'success', 'failure', 'na'],
+            'status_izb':                   ['', 'success', 'failure', 'na'],
+            'status_AKVS':                  ['', 'success', 'failure', 'na'],
+            'status_hash':                  ['', 'success', 'failure', 'na'],
         },
     },
 
@@ -421,11 +421,14 @@ def get_db():
     return conn
 
 
+# Таблицы которые не показываются в интерфейсе
+HIDDEN_TABLES = {'sqlite_sequence'}
+
 def get_all_tables(conn):
     rows = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
     ).fetchall()
-    return [r['name'] for r in rows]
+    return [r['name'] for r in rows if r['name'] not in HIDDEN_TABLES]
 
 
 class ColInfo:
