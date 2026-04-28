@@ -99,6 +99,24 @@ TABLE_CONFIG = {
 
 }
 # =============================================================================
+# МАППИНГ: поле статуса → поле пути в таблице results_path
+# Если для статуса есть путь — рядом появится кнопка 📁
+# =============================================================================
+RESULT_PATH_MAP = {
+    'status_extensions':            'extensions_path',
+    'status_binaries_in_src':       'binsrc_path',
+    'status_SQ':                    'SQ_result_path',
+    'status_svace_ob_build':        'svace_ob_build_path',
+    'status_svace_ob_analyze':      'svace_ob_analyze_path',
+    'status_svace_b_build':         'svace_b_build_path',
+    'status_svace_b_build_analyze': 'svace_b_analyze_path',
+    'status_buildography_analyze':  'buildography_analyze_path',
+    'status_understand':            'understand_path',
+    'status_izb':                   'izb_path',
+    'status_AKVS':                  'AKVS_path',
+    'status_hash':                  'hash_path',
+}
+# =============================================================================
 
 HTML = """
 <!DOCTYPE html>
@@ -236,14 +254,19 @@ HTML = """
   table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
   thead tr { background: #111116; border-bottom: 1px solid var(--border); }
   th {
-    padding: 0.7rem 0.8rem; text-align: left; color: var(--muted);
-    font-weight: 600; white-space: nowrap; font-size: 0.63rem;
+    padding: 0.7rem 0.5rem; text-align: left; color: var(--muted);
+    font-weight: 600; font-size: 0.63rem;
     text-transform: uppercase; letter-spacing: 0.05em;
+    vertical-align: bottom;
+  }
+  th a {
+    display: inline-block;
+    white-space: nowrap;
   }
   th.sortable { cursor: pointer; user-select: none; }
   th.sortable:hover { color: var(--text); }
-  th.sort-asc::after  { content: ' ↑'; color: var(--accent); }
-  th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+  th.sort-asc a::after  { content: ' ↑'; color: var(--accent); }
+  th.sort-desc a::after { content: ' ↓'; color: var(--accent); }
 
   td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
@@ -266,7 +289,7 @@ HTML = """
     background: var(--surface); color: var(--text);
     border: 1px solid var(--border); border-radius: 4px;
     padding: 0.25rem 0.4rem; font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem; cursor: pointer; width: 90px;
+    font-size: 0.7rem; cursor: pointer; width: 115px;
   }
   select.inline:focus { outline: none; border-color: var(--accent); }
   select.inline.success { color: var(--success); border-color: #2a4a2a; }
@@ -289,6 +312,44 @@ HTML = """
   .btn-del:hover { color: var(--failure); border-color: var(--failure); }
   .actions { white-space: nowrap; }
   .empty { text-align: center; padding: 3rem; color: var(--muted); }
+
+  .path-btn {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--muted); font-size: 0.8rem; padding: 0 0.2rem;
+    vertical-align: middle; transition: color 0.15s;
+    position: relative;
+  }
+  .path-btn:hover { color: var(--accent3); }
+
+  .path-popup {
+    display: none;
+    position: fixed;
+    background: #1e1e26;
+    border: 1px solid var(--accent3);
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.7rem;
+    color: var(--text);
+    z-index: 1000;
+    max-width: 400px;
+    word-break: break-all;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .path-popup .popup-label {
+    color: var(--muted); font-size: 0.6rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 0.3rem;
+  }
+  .path-popup .popup-path {
+    color: var(--accent3); margin-bottom: 0.4rem;
+  }
+  .path-popup .popup-copy {
+    background: var(--accent3); color: #000; border: none;
+    border-radius: 3px; padding: 0.2rem 0.5rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+    font-weight: 600; cursor: pointer;
+  }
+  .path-popup .popup-copy:hover { opacity: 0.85; }
 </style>
 </head>
 <body>
@@ -353,7 +414,7 @@ HTML = """
     <thead>
       <tr>
         {% for col in columns %}
-        <th class="sortable {% if sort == col.name %}sort-{{ order }}{% endif %}">
+        <th class="sortable {% if sort == col.name %}sort-{{ order }}{% endif %} {% if loop.index <= 4 %}wide{% endif %}">
           <a href="/?table={{ table }}&sort={{ col.name }}&order={{ 'asc' if (sort==col.name and order=='desc') else 'desc' if (sort==col.name and order=='asc') else 'asc' }}&q={{ q }}"
              style="color:inherit;text-decoration:none">{{ col.name }}</a>
         </th>
@@ -376,12 +437,23 @@ HTML = """
             {% if col.name == 'id' %}
               <span style="color:var(--muted)">{{ row[col.name] }}</span>
             {% elif col.name in dropdown_fields %}
-              <select name="{{ col.name }}" class="inline {{ row[col.name] or '' }}"
-                      onchange="this.className='inline '+this.value">
-                {% for opt in dropdown_fields[col.name] %}
-                <option value="{{ opt }}" {% if row[col.name]==opt %}selected{% endif %}>{{ opt or '—' }}</option>
-                {% endfor %}
-              </select>
+              <div style="display:inline-flex;align-items:center;gap:0.3rem;white-space:nowrap;">
+                <select name="{{ col.name }}" class="inline {{ row[col.name] or '' }}"
+                        onchange="this.className='inline '+this.value">
+                  {% for opt in dropdown_fields[col.name] %}
+                  <option value="{{ opt }}" {% if row[col.name]==opt %}selected{% endif %}>{{ opt or '—' }}</option>
+                  {% endfor %}
+                </select>
+                {% if col.name in result_path_map and row['project_name'] in result_paths %}
+                  {% set path_field = result_path_map[col.name] %}
+                  {% set path_val = result_paths[row['project_name']].get(path_field, '') %}
+                  {% if path_val %}
+                  <button type="button" class="path-btn"
+                    onclick="showPathPopup(event, '{{ path_val|e }}')"
+                    title="Путь к результатам">📁</button>
+                  {% endif %}
+                {% endif %}
+              </div>
             {% elif col.type_upper in ('INTEGER', 'REAL', 'NUMERIC') %}
               <input class="inline-edit" type="number" name="{{ col.name }}" value="{{ row[col.name] or '' }}">
             {% else %}
@@ -406,10 +478,60 @@ HTML = """
   </table>
 </div>
 
+<!-- path popup -->
+<div class="path-popup" id="pathPopup">
+  <div class="popup-label">Путь к результатам</div>
+  <div class="popup-path" id="pathPopupText"></div>
+  <button class="popup-copy" onclick="copyPath()">копировать</button>
+</div>
+
 <script>
 function toggleAdd() {
   document.getElementById('addPanel').classList.toggle('open');
 }
+
+function showPathPopup(event, path) {
+  event.stopPropagation();
+  const popup = document.getElementById('pathPopup');
+  document.getElementById('pathPopupText').textContent = path;
+  popup.style.display = 'block';
+  const rect = event.target.getBoundingClientRect();
+  let left = rect.right + 8;
+  let top = rect.top + window.scrollY;
+  if (left + 420 > window.innerWidth) left = rect.left - 428;
+  popup.style.left = left + 'px';
+  popup.style.top = top + 'px';
+}
+
+function copyPath() {
+  const text = document.getElementById('pathPopupText').textContent;
+  const btn = document.querySelector('.popup-copy');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'скопировано!';
+      setTimeout(() => btn.textContent = 'копировать', 1500);
+    });
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = 'скопировано!';
+    setTimeout(() => btn.textContent = 'копировать', 1500);
+  }
+}
+
+document.addEventListener('click', function(e) {
+  const popup = document.getElementById('pathPopup');
+  if (!popup.contains(e.target) && !e.target.classList.contains('path-btn')) {
+    popup.style.display = 'none';
+  }
+});
 </script>
 </body>
 </html>
@@ -486,12 +608,21 @@ def index():
             f'SELECT * FROM "{table}" ORDER BY "{sort}" {order}'
         ).fetchall()
 
+    # Загружаем пути из results_path если таблица существует
+    result_paths = {}
+    if 'results_path' in all_tables:
+        rp_rows = conn.execute('SELECT * FROM results_path').fetchall()
+        for rp in rp_rows:
+            result_paths[rp['project_name']] = dict(rp)
+
     conn.close()
     return render_template_string(
         HTML,
         rows=rows, total=total, table=table,
         all_tables=all_tables, columns=columns,
         dropdown_fields=dropdown_fields,
+        result_path_map=RESULT_PATH_MAP,
+        result_paths=result_paths,
         msg=msg, q=q, sort=sort, order=order,
     )
 
