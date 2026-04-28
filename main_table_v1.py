@@ -6,6 +6,7 @@ db = sqlite3.connect('main-table-project.db')
 Cursor = db.cursor()
 
 Cursor.execute("""CREATE TABLE status (
+               id integer PRIMARY KEY AUTOINCREMENT,
                name text,
                path_to_code text,
                path_to_buildography text,
