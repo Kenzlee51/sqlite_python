@@ -74,6 +74,9 @@ TABLE_CONFIG = {
     'status': {
         'dropdown_fields': {
             'status_unpacking':             ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
+            'status_keep_unpacked':         ['false','NOT_STARTED', 'SUCCEEDED', 'FAILED'],
+            'status_json_src':              ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
+            'status_json_bin':              ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
             'status_extensions':            ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
             'status_binaries_in_src':       ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
             'status_SQ':                    ['NOT_STARTED', 'SUCCEEDED', 'FAILED'],
@@ -104,6 +107,9 @@ TABLE_CONFIG = {
 # =============================================================================
 RESULT_PATH_MAP = {
     'status_extensions':            'extensions_path',
+    'status_keep_unpacked':         'keep_unpacked_path',
+    'status_json_src':              'json(src/bin)_path',
+    'status_json_bin':              'json(src/bin)_path',
     'status_binaries_in_src':       'binsrc_path',
     'status_SQ':                    'SQ_result_path',
     'status_svace_ob_build':        'svace_ob_build_path',
