@@ -108,8 +108,8 @@ TABLE_CONFIG = {
 RESULT_PATH_MAP = {
     'status_extensions':            'extensions_path',
     'status_keep_unpacked':         'keep_unpacked_path',
-    'status_json_src':              'json(src/bin)_path',
-    'status_json_bin':              'json(src/bin)_path',
+    'status_json_src':              'json_src_bin_path',
+    'status_json_bin':              'json_src_bin_path',
     'status_binaries_in_src':       'binsrc_path',
     'status_SQ':                    'SQ_result_path',
     'status_svace_ob_build':        'svace_ob_build_path',

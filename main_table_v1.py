@@ -8,9 +8,13 @@ Cursor = db.cursor()
 Cursor.execute("""CREATE TABLE status (
                id integer PRIMARY KEY AUTOINCREMENT,
                project_name text,
+               status_keep_unpacked text,
                path_to_code text,
+               json_src_bin_path text,
                path_to_buildography text,
                status_unpacking text,
+               status_json_src text,
+               status_json_bin text,
                status_extensions text,
                status_binaries_in_src text,
                status_SQ text,
@@ -28,6 +32,8 @@ Cursor.execute("""CREATE TABLE status (
 Cursor.execute("""CREATE TABLE results_path (
                id integer PRIMARY KEY AUTOINCREMENT,
                project_name text,
+               json_src_bin_path text,
+               keep_unpacked_path text,
                extensions_path text,
                binsrc_path text,
                SQ_result_path text,
