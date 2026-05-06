@@ -24,6 +24,9 @@ Cursor.execute("""CREATE TABLE status (
                status_svace_b_build_analyze text,
                status_buildography_analyze text,
                status_izb text,
+               status_NOP_PREBUILD text,
+               path_to_NOPBUILD text,
+               status_NOP_POSTBUILD text,
                status_AKVS text,
                status_understand text,
                status_hash text
@@ -42,6 +45,8 @@ Cursor.execute("""CREATE TABLE results_path (
                svace_b_build_path text,
                svace_b_analyze_path text,
                buildography_analyze_path text,
+               path_nop_prebuild text,
+               path_nop_postbuild text,
                understand_path text,
                izb_path text,
                AKVS_path text,
