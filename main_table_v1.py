@@ -33,7 +33,7 @@ Cursor.execute("""CREATE TABLE status (
                status_AKVS text,
                status_understand text,
                status_hash text,
-               status_work test
+               status_work text
                 )""")
 
 # Таблица-зеркало для таблицы status. Содержит в себе отражение 
@@ -43,8 +43,8 @@ Cursor.execute("""CREATE TABLE status (
 # При внесении изменений в основную таблицу, вотчер увидит расхождения 
 # между основной и зеркалом и запустит воркер с соответсвующими шагами
 
-Cursor.execute("""CREATE_TABLE status_mirror (
-               id integer PRIMARY KEY AUTOINCREMET,
+Cursor.execute("""CREATE TABLE status_mirror (
+               id integer PRIMARY KEY AUTOINCREMENT,
                project_name text,
                status_keep_unpacked text,
                path_to_code text,
