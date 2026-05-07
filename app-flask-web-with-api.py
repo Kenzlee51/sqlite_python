@@ -882,21 +882,14 @@ def api_status_overview():
         logger.exception("Ошибка в api_status_overview: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/api/project/<string:project_name', methods=['GET'])
+# =============================================================================
+# НОВЫЕ ЭНДПОИНТЫ ДЛЯ ВОТЧЕРА (работа с таблицей status_mirror)
+# =============================================================================
+
+@app.route('/api/project/<string:project_name>', methods=['GET'])
 def api_get_project(project_name):
     """
-    Возвращает JSON со всей строкой преокта из таблицы status
-    по его имени.
-    Пример ответаЖ
-    {
-      "id": 1,
-      "project_name": "silak-mpt",
-      "path_to_code": "/home/...",
-      "path_to_buildography": "/path/to/buildography",
-      "status_unpacking": "SUCCEEDED",
-      "status_hash": "NOT_STARTED",
-      ...
-    }
+    Возвращает JSON со всей строкой проекта из таблицы status по имени.
     """
     try:
         with get_db() as conn:
@@ -913,64 +906,65 @@ def api_get_project(project_name):
 
 @app.route('/api/projects', methods=['GET'])
 def api_get_projects():
-    """Возвращает список всех преоктов (все поля) из таблицы status."""
+    """Возвращает список всех проектов (все поля) из таблицы status."""
     try:
         with get_db() as conn:
             rows = conn.execute(
-                "SELECT * FROM status WHERE project_name IS NOT NULL AND project_name !=''"
+                "SELECT * FROM status WHERE project_name IS NOT NULL AND project_name != ''"
             ).fetchall()
             result = [dict(row) for row in rows]
             return jsonify(result)
     except Exception as e:
-        logger.exception("Ошибка в api_get_project: %s", e)
+        logger.exception("Ошибка в api_get_projects: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
-    
-@app.route('/api/shadow/<string:project_name', methods=['GET'])
-def api_get_shadow(project_name):
+
+@app.route('/api/mirror/<string:project_name>', methods=['GET'])
+def api_get_mirror(project_name):
     """
-    Возвращает JSON с записью из status_shadow для данного проектаю
-    Если записи нет, возвращает {"exists": false}
+    Возвращает JSON с записью из status_mirror для данного проекта.
+    Если записи нет, возвращает {"exists": false}.
     """
     try:
         with get_db() as conn:
             row = conn.execute(
-                "SELECT * FROM status_shadow WHERE project_name = ?",
+                "SELECT * FROM status_mirror WHERE project_name = ?",
                 (project_name,)
             ).fetchone()
             if not row:
                 return jsonify({'exists': False})
             return jsonify(dict(row))
     except Exception as e:
-        logger.exception("Ошибка в api_get_shadow: %s", e)
+        logger.exception("Ошибка в api_get_mirror: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
-    
-@app.route('/api/shadow_all', methods=['GET'])
-def api_get_shadow_all();
-    """Возвращает список всех записей из status_shadow."""
+
+@app.route('/api/mirror_all', methods=['GET'])
+def api_get_mirror_all():
+    """Возвращает список всех записей из status_mirror."""
     try:
         with get_db() as conn:
-            rows = conn.execute("SELECT * FROM status_shadow").fetchall()
+            rows = conn.execute("SELECT * FROM status_mirror").fetchall()
             result = [dict(row) for row in rows]
-            return
+            return jsonify(result)
     except Exception as e:
-        logger.exception("Ошибка в api_get_shadow_all: %s", e)
-        return jsonify({'error': 'Internasl server error'}), 500
-    
-@app.route('/api/sync_shadow', methods=['GET'])
-def api_sync_shadow():
+        logger.exception("Ошибка в api_get_mirror_all: %s", e)
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/sync_mirror', methods=['POST'])
+def api_sync_mirror():
     """
-    Синхронизирует status_shadow для указанного проекта:
-    копирует поляи статусы шагов из оснвоной таблицы status в status_mirror.
-    Используется воркером после полного выполнения всех шагов
+    Синхронизирует status_mirror для указанного проекта:
+    копирует поля (project_name, path_to_code, path_to_buildography
+    и все статусы шагов) из основной таблицы status в status_mirror.
+    Используется воркером после полного выполнения всех шагов.
     """
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Invalid JSON'}), 400
-    
+
     project_name = data.get('project_name')
     if not project_name:
         return jsonify({'error': 'Missing project_name'}), 400
-    
+
     try:
         with get_db() as conn:
             main_row = conn.execute(
@@ -979,10 +973,9 @@ def api_sync_shadow():
             ).fetchone()
             if not main_row:
                 return jsonify({'error': 'Project not found'}), 404
-            
-            # Собираем поля, которые нужно скопировать в mirror
-            # (имена полей из status_mirror)
-            shadow_fields = [
+
+            # Поля, которые нужно скопировать в status_mirror
+            mirror_fields = [
                 'project_name',
                 'path_to_code',
                 'path_to_buildography',
@@ -999,28 +992,26 @@ def api_sync_shadow():
                 'status_izb',
                 'status_SQ'
             ]
-            values = [main_row[field] for field in shadow_fields]
+            values = [main_row[field] for field in mirror_fields]
 
             existing = conn.execute(
-                "SELECT 1 FROM status_shadow WHERE project_name = ?",
+                "SELECT 1 FROM status_mirror WHERE project_name = ?",
                 (project_name,)
             ).fetchone()
             if existing:
-                set_clause = ', '.join([f"{field} = ?" for field in shadow_fields if field != 'project_name'])
-                query = f"UPDATE status_shadow SET {set_clause} WHERE project_name = ?"
-
+                set_clause = ', '.join([f"{field} = ?" for field in mirror_fields if field != 'project_name'])
+                query = f"UPDATE status_mirror SET {set_clause} WHERE project_name = ?"
                 conn.execute(query, values[1:] + [project_name])
-
             else:
-                placeholders = ', '.join(['?' for _ in shadow_fields])
-                query = f"INSERT INTO status_shadow ({', '.join(shadow_fields)}) VALUES ({placeholders})"
-                conn.execute(query,values)
+                placeholders = ', '.join(['?' for _ in mirror_fields])
+                query = f"INSERT INTO status_mirror ({', '.join(mirror_fields)}) VALUES ({placeholders})"
+                conn.execute(query, values)
             conn.commit()
             return jsonify({'status': 'ok', 'synced': project_name})
     except Exception as e:
-        logger.exception("Ошибка в api_sync_shadow: %s", e)
+        logger.exception("Ошибка в api_sync_mirror: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
-                
+
 # -----------------------------------------------------------------------------
 # ЗАПУСК ПРИЛОЖЕНИЯ
 # -----------------------------------------------------------------------------
