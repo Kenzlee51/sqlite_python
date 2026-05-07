@@ -5,6 +5,9 @@ db = sqlite3.connect('main-table-project.db')
 #Create Cursor
 Cursor = db.cursor()
 
+#Основная таблица со статусами по преоктам. Тут добавляются 
+# новые преокты для анализа и определяется статус для всех 
+# последующих шагов анализа
 Cursor.execute("""CREATE TABLE status (
                id integer PRIMARY KEY AUTOINCREMENT,
                project_name text,
@@ -29,9 +32,46 @@ Cursor.execute("""CREATE TABLE status (
                status_NOP_POSTBUILD text,
                status_AKVS text,
                status_understand text,
-               status_hash text
+               status_hash text,
+               status_work test
                 )""")
 
+# Таблица-зеркало для таблицы status. Содержит в себе отражение 
+# выполненных действий. Когда воркер берет в работу проект, в 
+# таблице-зеркале появляется запись аналогичная основной таблице. 
+# При обновлении статусов в основной таблцие воркер обнвовляет их и в зеркале.
+# При внесении изменений в основную таблицу, вотчер увидит расхождения 
+# между основной и зеркалом и запустит воркер с соответсвующими шагами
+
+Cursor.execute("""CREATE_TABLE status_mirror (
+               id integer PRIMARY KEY AUTOINCREMET,
+               project_name text,
+               status_keep_unpacked text,
+               path_to_code text,
+               json_src_bin_path text,
+               path_to_buildography text,
+               status_unpacking text,
+               status_json_src text,
+               status_json_bin text,
+               status_extensions text,
+               status_binaries_in_src text,
+               status_SQ text,
+               status_svace_ob_build text,
+               status_svace_ob_analyze text,
+               status_svace_b_build text,
+               status_svace_b_build_analyze text,
+               status_buildography_analyze text,
+               status_izb text,
+               status_NOP_PREBUILD text,
+               path_to_NOPBUILD text,
+               status_NOP_POSTBUILD text,
+               status_AKVS text,
+               status_understand text,
+               status_hash text
+               )""")
+
+# ТАблица хранит в себе пути, по которым 
+# лежат результаты шагов испытаний проведенных воркером
 Cursor.execute("""CREATE TABLE results_path (
                id integer PRIMARY KEY AUTOINCREMENT,
                project_name text,

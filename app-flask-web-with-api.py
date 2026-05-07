@@ -70,6 +70,7 @@ TABLE_CONFIG = {
             'status_understand':            ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_AKVS':                  ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_hash':                  ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
+            'status_work test':             ['inactive', 'active', 'stollen']
         },
     },
 }
