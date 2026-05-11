@@ -60,7 +60,6 @@ TABLE_CONFIG = {
             'status_SQ':                    ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_svace_ob_build':        ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_svace_ob_analyze':      ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
-            'status_svacer_ob_analyze':     ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_svace_b_build':         ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_svace_b_build_analyze': ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_buildography_analyze':  ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
@@ -70,7 +69,6 @@ TABLE_CONFIG = {
             'status_understand':            ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_AKVS':                  ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
             'status_hash':                  ['NOT_STARTED', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'false'],
-            'status_work test':             ['inactive', 'active', 'stollen']
         },
     },
 }
@@ -503,7 +501,7 @@ HTML = """
     {% else %}
       <tr><td colspan="100" class="empty">
         {% if q %}no results for "{{ q }}"{% else %}no rows{% endif %}
-      </td></tr>
+      <tr></tr>
     {% endif %}
     </tbody>
   </table>
@@ -883,26 +881,8 @@ def api_status_overview():
         return jsonify({'error': 'Internal server error'}), 500
 
 # =============================================================================
-# НОВЫЕ ЭНДПОИНТЫ ДЛЯ ВОТЧЕРА (работа с таблицей status_mirror)
+# НОВЫЕ API ДЛЯ ВОТЧЕРА (работа с проектами и зеркалом)
 # =============================================================================
-
-@app.route('/api/project/<string:project_name>', methods=['GET'])
-def api_get_project(project_name):
-    """
-    Возвращает JSON со всей строкой проекта из таблицы status по имени.
-    """
-    try:
-        with get_db() as conn:
-            row = conn.execute(
-                "SELECT * FROM status WHERE project_name = ?",
-                (project_name,)
-            ).fetchone()
-            if not row:
-                return jsonify({'error': 'Project not found'}), 404
-            return jsonify(dict(row))
-    except Exception as e:
-        logger.exception("Ошибка в api_get_project: %s", e)
-        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/projects', methods=['GET'])
 def api_get_projects():
@@ -918,12 +898,25 @@ def api_get_projects():
         logger.exception("Ошибка в api_get_projects: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/api/project/<string:project_name>', methods=['GET'])
+def api_get_project(project_name):
+    """Возвращает JSON со всей строкой проекта из таблицы status по имени."""
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT * FROM status WHERE project_name = ?",
+                (project_name,)
+            ).fetchone()
+            if not row:
+                return jsonify({'error': 'Project not found'}), 404
+            return jsonify(dict(row))
+    except Exception as e:
+        logger.exception("Ошибка в api_get_project: %s", e)
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/api/mirror/<string:project_name>', methods=['GET'])
 def api_get_mirror(project_name):
-    """
-    Возвращает JSON с записью из status_mirror для данного проекта.
-    Если записи нет, возвращает {"exists": false}.
-    """
+    """Возвращает JSON с записью из status_mirror для данного проекта. Если записи нет – {"exists": false}."""
     try:
         with get_db() as conn:
             row = conn.execute(
@@ -953,8 +946,8 @@ def api_get_mirror_all():
 def api_sync_mirror():
     """
     Синхронизирует status_mirror для указанного проекта:
-    копирует поля (project_name, path_to_code, path_to_buildography
-    и все статусы шагов) из основной таблицы status в status_mirror.
+    копирует поля (project_name, path_to_code, path_to_buildography, все статусы шагов)
+    из основной таблицы status в status_mirror.
     Используется воркером после полного выполнения всех шагов.
     """
     data = request.get_json()
@@ -974,7 +967,7 @@ def api_sync_mirror():
             if not main_row:
                 return jsonify({'error': 'Project not found'}), 404
 
-            # Поля, которые нужно скопировать в status_mirror
+            # Поля, которые нужно скопировать в status_mirror (должны соответствовать структуре mirror)
             mirror_fields = [
                 'project_name',
                 'path_to_code',
@@ -1011,6 +1004,48 @@ def api_sync_mirror():
     except Exception as e:
         logger.exception("Ошибка в api_sync_mirror: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/update_status_work', methods=['POST'])
+def api_update_status_work():
+    """
+    Обновляет поле status_work для указанного проекта.
+    Ожидает JSON: {"project_name": "silak_mpt", "status_work": "active"}
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid JSON'}), 400
+
+    project_name = data.get('project_name')
+    new_status = data.get('status_work')  # 'active', 'inactive', 'stalled'
+    if not project_name or not new_status:
+        return jsonify({'error': 'Missing project_name or status_work'}), 400
+
+    allowed = {'inactive', 'active', 'stalled'}
+    if new_status not in allowed:
+        return jsonify({'error': f'Invalid status_work: {new_status}'}), 400
+
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT id FROM status WHERE project_name = ?", (project_name,)).fetchone()
+            if not row:
+                return jsonify({'error': 'Project not found'}), 404
+            conn.execute(
+                "UPDATE status SET status_work = ?, project_updated_at = datetime('now') WHERE project_name = ?",
+                (new_status, project_name)
+            )
+            conn.commit()
+        return jsonify({'status': 'ok', 'project_name': project_name, 'status_work': new_status})
+    except Exception as e:
+        logger.exception("Ошибка в api_update_status_work: %s", e)
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/rules', methods=['GET'])
+def api_get_rules():
+    """Возвращает STEPS_IN_ORDER и STEP_DEPENDENCIES для вотчера."""
+    return jsonify({
+        'steps_in_order': STEPS_IN_ORDER,
+        'step_dependencies': STEP_DEPENDENCIES
+    })
 
 # -----------------------------------------------------------------------------
 # ЗАПУСК ПРИЛОЖЕНИЯ

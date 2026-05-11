@@ -33,6 +33,7 @@ Cursor.execute("""CREATE TABLE status (
                status_AKVS text,
                status_understand text,
                status_hash text,
+               project_update_at text,
                status_work text
                 )""")
 
